@@ -35,7 +35,7 @@ fn build_tls_config(cert_file: &String, key_file: &String) -> ServerConfig {
     tls_config
 }
 
-#[actix_rt::main]
+#[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let config = get_app_config().clone();
     std::env::set_var(
@@ -62,7 +62,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            .wrap(Cors::new().supports_credentials().finish())
+            .wrap(Cors::default().supports_credentials())
             .data(Client::new())
             .data(config.forward_url.clone())
             .data(config.app_secret.clone())

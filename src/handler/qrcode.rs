@@ -14,7 +14,7 @@ pub async fn qr_code(id: Identity, secret: web::Data<String>) -> impl Responder 
         .render()
         .min_dimensions(200, 200)
         .dark_color(svg::Color("#800000"))
-        .light_color(svg::Color("#ffff80"))
+        .light_color(svg::Color("#fff"))
         .build();
 
     HttpResponse::Ok().content_type("image/svg+xml").body(image)

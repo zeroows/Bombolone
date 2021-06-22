@@ -1,42 +1,31 @@
+use super::camera;
 use actix_identity::Identity;
-use actix_web::client::Client;
-use actix_web::{web, Error, HttpRequest, HttpResponse};
-use url::Url;
+use actix_web::http::header::ContentType;
+use actix_web::web::Bytes;
+use actix_web::{web, Error, HttpRequest, HttpResponse, ResponseError};
+
+impl ResponseError for camera::Error {}
 
 pub async fn forward_video(
     id: Identity,
-    req: HttpRequest,
-    body: web::Bytes,
-    url: web::Data<Url>,
-    client: web::Data<Client>,
+    _req: HttpRequest,
+    _body: web::Bytes,
 ) -> Result<HttpResponse, Error> {
     // Short return
     if !id.identity().is_some() {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    let mut new_url = url.get_ref().clone();
+    let cam = camera::create(0).unwrap();
+    let mut cam = cam.fps(30.0)?.resolution(320, 180)?.start().unwrap();
 
-    new_url.set_query(req.uri().query());
+    // let mut client_resp = HttpResponse::build(StatusCode::OK);
 
-    let forwarded_req = client
-        .request_from(new_url.as_str(), req.head())
-        .no_decompress();
-    let forwarded_req = if let Some(addr) = req.head().peer_addr {
-        forwarded_req.header("x-forwarded-for", format!("{}", addr.ip()))
-    } else {
-        forwarded_req
-    };
+    let pic = cam.next().unwrap();
+    // let stream = stream::iter(cam.next());
+    let response = HttpResponse::Ok()
+        .set(ContentType::jpeg())
+        .body(Bytes::from(pic.to_vec()));
 
-    let res = forwarded_req.send_body(body).await.unwrap();
-
-    let mut client_resp = HttpResponse::build(res.status());
-
-    // Remove `Connection` as per
-    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Connection#Directives
-    for (header_name, header_value) in res.headers().iter().filter(|(h, _)| *h != "connection") {
-        client_resp.header(header_name.clone(), header_value.clone());
-    }
-
-    Ok(client_resp.streaming(res))
+    Ok(response)
 }
